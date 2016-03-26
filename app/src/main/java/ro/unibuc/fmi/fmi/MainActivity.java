@@ -1,7 +1,9 @@
 package ro.unibuc.fmi.fmi;
 
+import android.os.AsyncTask;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.design.widget.TabLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -10,6 +12,7 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -17,6 +20,18 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import android.widget.TextView;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -34,10 +49,12 @@ public class MainActivity extends AppCompatActivity {
      * The {@link ViewPager} that will host the section contents.
      */
     private ViewPager mViewPager;
+    private TabLayout tabLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -50,6 +67,8 @@ public class MainActivity extends AppCompatActivity {
         mViewPager = (ViewPager) findViewById(R.id.container);
         mViewPager.setAdapter(mSectionsPagerAdapter);
 
+        tabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
+        tabLayout.setupWithViewPager(mViewPager);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -60,6 +79,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        mSectionsPagerAdapter.FetchData();
     }
 
 
@@ -126,8 +146,116 @@ public class MainActivity extends AppCompatActivity {
      */
     public class SectionsPagerAdapter extends FragmentPagerAdapter {
 
+        String[] pages = {"test1", "test2", "test3"};
+
+        public class CategoryFetchTask extends AsyncTask<Void, Void, String[]>
+        {
+            private String[] parseCategories(String categoriesJsonStr) {
+                String[] strings;
+                try {
+                    JSONArray baseArray = new JSONArray(categoriesJsonStr);
+                    strings = new String[baseArray.length()];
+
+                    for (int i = 0; i < baseArray.length(); i++)
+                    {
+                        JSONObject baseElement = baseArray.getJSONObject(i);
+                        JSONObject title = baseElement.getJSONObject("title");
+                        strings[i] = title.getString("ro");
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                    return null;
+                }
+
+                return strings;
+            }
+
+            @Override
+            protected String[] doInBackground(Void... params) {
+                String host = "192.168.0.101:3000";
+
+                HttpURLConnection urlConnection = null;
+                BufferedReader reader = null;
+
+                // Will contain the raw JSON response as a string.
+                String categoriesJsonStr = null;
+
+                try {
+                    // Construct the URL for the OpenWeatherMap query
+                    // Possible parameters are avaiable at OWM's forecast API page, at
+                    // http://openweathermap.org/API#forecast
+                    URL url = new URL("http://"+host+"/api/categories");
+
+                    // Create the request to OpenWeatherMap, and open the connection
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.connect();
+
+                    // Read the input stream into a String
+                    InputStream inputStream = urlConnection.getInputStream();
+                    StringBuffer buffer = new StringBuffer();
+                    if (inputStream == null) {
+                        // Nothing to do.
+                        return null;
+                    }
+                    reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        // Since it's JSON, adding a newline isn't necessary (it won't affect parsing)
+                        // But it does make debugging a *lot* easier if you print out the completed
+                        // buffer for debugging.
+                        buffer.append(line + "\n");
+                    }
+
+                    if (buffer.length() == 0) {
+                        // Stream was empty.  No point in parsing.
+                        return null;
+                    }
+                    categoriesJsonStr = buffer.toString();
+                } catch (IOException e) {
+                    Log.e(this.getClass().getName(), "Error ", e);
+                    return null;
+                } finally{
+                    if (urlConnection != null) {
+                        urlConnection.disconnect();
+                    }
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (final IOException e) {
+                            Log.e(this.getClass().getName(), "Error closing stream", e);
+                        }
+                    }
+                }
+
+                return parseCategories(categoriesJsonStr);
+            }
+
+            @Override
+            protected void onPostExecute(String[] strings) {
+                super.onPostExecute(strings);
+                if (strings != null && strings.length > 0) {
+                    pages = strings;
+                    Log.i(this.getClass().getName(), "Fetched categories");
+                    mSectionsPagerAdapter.notifyDataSetChanged();
+                    tabLayout.invalidate();
+                }
+                else
+                {
+                    Log.e(this.getClass().getName(), "Fetched categories failed");
+                }
+            }
+        }
+
         public SectionsPagerAdapter(FragmentManager fm) {
             super(fm);
+        }
+
+        public void FetchData() {
+            CategoryFetchTask fetchCategories = new CategoryFetchTask();
+            fetchCategories.execute();
+            Log.i(this.getClass().getName(), "Started category fetch task");
         }
 
         @Override
@@ -139,21 +267,12 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public int getCount() {
-            // Show 3 total pages.
-            return 3;
+            return pages.length;
         }
 
         @Override
         public CharSequence getPageTitle(int position) {
-            switch (position) {
-                case 0:
-                    return "SECTION 1";
-                case 1:
-                    return "SECTION 2";
-                case 2:
-                    return "SECTION 3";
-            }
-            return null;
+            return pages[position];
         }
     }
 }
