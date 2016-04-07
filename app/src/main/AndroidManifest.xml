@@ -20,6 +20,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <provider
+            android:authorities="ro.unibuc.fmi.fmi"
+            android:name=".data.FmiProvider" />
     </application>
 
 </manifest>

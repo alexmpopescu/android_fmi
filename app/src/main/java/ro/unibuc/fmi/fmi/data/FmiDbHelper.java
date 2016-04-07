@@ -37,10 +37,13 @@ public class FmiDbHelper extends SQLiteOpenHelper {
                 PostEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 PostEntry.COLUMN_TITLE_STRING_KEY + " INTEGER, " +
                 PostEntry.COLUMN_CONTENT_STRING_KEY + " INTEGER NOT NULL, " +
+                PostEntry.COLUMN_CATEGORY_KEY + " INTEGER NOT NULL, " +
                 "FOREIGN KEY (" + PostEntry.COLUMN_TITLE_STRING_KEY + ") REFERENCES " +
                 StringEntry.TABLE_NAME + " (" + StringEntry._ID + "), " +
                 "FOREIGN KEY (" + PostEntry.COLUMN_CONTENT_STRING_KEY + ") REFERENCES " +
-                StringEntry.TABLE_NAME + " (" + StringEntry._ID + "));";
+                StringEntry.TABLE_NAME + " (" + StringEntry._ID + "), " +
+                "FOREIGN KEY (" + PostEntry.COLUMN_CATEGORY_KEY + ") REFERENCES " +
+                CategoryEntry.TABLE_NAME + " (" + CategoryEntry._ID + "));";
 
         db.execSQL(SQL_CREATE_STRINGS);
         db.execSQL(SQL_CREATE_TRANSLATIONS);

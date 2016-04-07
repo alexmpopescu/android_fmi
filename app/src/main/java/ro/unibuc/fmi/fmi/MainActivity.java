@@ -172,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             protected String[] doInBackground(Void... params) {
-                String host = "192.168.0.101:3000";
+                String host = "10.11.69.51:3000";
 
                 HttpURLConnection urlConnection = null;
                 BufferedReader reader = null;
