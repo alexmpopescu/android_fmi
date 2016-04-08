@@ -4,10 +4,10 @@ import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.support.annotation.Nullable;
 
-import java.util.Locale;
 import ro.unibuc.fmi.fmi.data.FmiContract.*;
 
 /**
@@ -17,13 +17,12 @@ public class FmiProvider extends ContentProvider {
 
     private static final UriMatcher uriMatcher = buildUriMatcher();
     private FmiDbHelper fmiDbHelper;
-    private String locale;
-
-    static final String defaultLocale = "ro";
 
     static final int CATEGORY = 100;
     static final int CATEGORY_WITH_POSTS = 101;
-    static final int POST = 300;
+    static final int POST = 200;
+    static final int TRANSLATION = 300;
+    static final int STRING = 400;
 
     static UriMatcher buildUriMatcher() {
         final UriMatcher matcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -39,7 +38,6 @@ public class FmiProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         fmiDbHelper = new FmiDbHelper(getContext());
-        locale = Locale.getDefault().getLanguage();
         return true;
     }
 
@@ -127,7 +125,45 @@ public class FmiProvider extends ContentProvider {
     @Nullable
     @Override
     public Uri insert(Uri uri, ContentValues values) {
-        return null;
+        final SQLiteDatabase db = fmiDbHelper.getWritableDatabase();
+        final int match = uriMatcher.match(uri);
+        Uri returnUri;
+        long _id;
+
+        switch (match) {
+            case STRING:
+                _id = db.insert(StringEntry.TABLE_NAME, null, values);
+                if (_id > 0)
+                    returnUri = StringEntry.buildStringUri(_id);
+                else
+                    throw new android.database.SQLException("Failed to insert row into " + uri);
+                break;
+            case TRANSLATION:
+                _id = db.insert(TranslationEntry.TABLE_NAME, null, values);
+                if (_id > 0)
+                    returnUri = TranslationEntry.buildTranslationUri(_id);
+                else
+                    throw new android.database.SQLException("Failed to insert row into " + uri);
+                break;
+            case CATEGORY:
+                _id = db.insert(CategoryEntry.TABLE_NAME, null, values);
+                if (_id > 0)
+                    returnUri = CategoryEntry.buildTranslationUri(_id);
+                else
+                    throw new android.database.SQLException("Failed to insert row into " + uri);
+                break;
+            case POST:
+                _id = db.insert(PostEntry.TABLE_NAME, null, values);
+                if (_id > 0)
+                    returnUri = PostEntry.buildTranslationUri(_id);
+                else
+                    throw new android.database.SQLException("Failed to insert row into " + uri);
+                break;
+            default:
+                throw new UnsupportedOperationException("Unknown uri: " + uri);
+        }
+        getContext().getContentResolver().notifyChange(uri, null);
+        return returnUri;
     }
 
     @Override

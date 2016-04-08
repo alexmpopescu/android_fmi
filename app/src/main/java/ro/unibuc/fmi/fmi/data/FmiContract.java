@@ -1,6 +1,7 @@
 package ro.unibuc.fmi.fmi.data;
 
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.net.Uri;
 import android.provider.BaseColumns;
 
@@ -30,6 +31,10 @@ public class FmiContract {
         public static final String TABLE_NAME = "categories";
 
         public static final String COLUMN_NAME_STRING_KEY = "name_string_key";
+
+        public static Uri buildTranslationUri(long id) {
+            return ContentUris.withAppendedId(CONTENT_URI, id);
+        }
     }
 
     public static final class StringEntry implements BaseColumns {
@@ -43,6 +48,10 @@ public class FmiContract {
                 ContentResolver.CURSOR_ITEM_BASE_TYPE + "/" + CONTENT_AUTHORITY + "/" + PATH_STRING;
 
         public static final String TABLE_NAME = "strings";
+
+        public static Uri buildStringUri(long id) {
+            return ContentUris.withAppendedId(CONTENT_URI, id);
+        }
     }
 
     public static final class TranslationEntry implements BaseColumns {
@@ -60,6 +69,10 @@ public class FmiContract {
         public static final String COLUMN_STRING_KEY = "string_key";
         public static final String COLUMN_LOCALE = "locale";
         public static final String COLUMN_VALUE = "value";
+
+        public static Uri buildTranslationUri(long id) {
+            return ContentUris.withAppendedId(CONTENT_URI, id);
+        }
     }
 
     public final static class PostEntry implements BaseColumns {
@@ -77,5 +90,9 @@ public class FmiContract {
         public static final String COLUMN_TITLE_STRING_KEY = "title_string_key";
         public static final String COLUMN_CONTENT_STRING_KEY = "content_string_key";
         public static final String COLUMN_CATEGORY_KEY = "category_key";
+
+        public static Uri buildTranslationUri(long id) {
+            return ContentUris.withAppendedId(CONTENT_URI, id);
+        }
     }
 }
