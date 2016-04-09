@@ -26,13 +26,13 @@ import java.net.URL;
 import java.util.Iterator;
 import java.util.Vector;
 
+import ro.unibuc.fmi.fmi.BuildConfig;
 import ro.unibuc.fmi.fmi.data.FmiContract;
 
 /**
  * Created by alexandru on 09.04.2016
  */
 public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
-    private static final String SERVER_ADDR = "10.11.69.51:3000";
 
     public FmiSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -41,7 +41,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
     @Override
     public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {
         try {
-            parseCategories(performHttpRequest(new URL("http://" + SERVER_ADDR + "/api/categories")));
+            parseCategories(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/categories")));
             // TODO: download and parse posts
         } catch (MalformedURLException e) {
             e.printStackTrace();

@@ -17,6 +17,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+
+    buildTypes.each {
+        it.buildConfigField "String", "FMI_SERVER_ADDR", "\"10.11.69.51:3000\""
+    }
 }
 
 dependencies {
