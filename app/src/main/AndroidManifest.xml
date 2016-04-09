@@ -22,7 +22,9 @@
         </activity>
         <provider
             android:authorities="ro.unibuc.fmi.fmi"
-            android:name=".data.FmiProvider" />
+            android:name=".data.FmiProvider"
+            android:exported="false"
+            android:syncable="true" />
     </application>
 
 </manifest>

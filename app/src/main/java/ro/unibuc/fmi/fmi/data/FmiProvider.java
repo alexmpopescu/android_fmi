@@ -331,6 +331,7 @@ public class FmiProvider extends ContentProvider {
         final SQLiteDatabase db = fmiDbHelper.getWritableDatabase();
         final int match = uriMatcher.match(uri);
         int inserts;
+        String log = "bulkInsert_" + match;
 
         switch (match) {
             case TRANSLATION:
@@ -339,7 +340,7 @@ public class FmiProvider extends ContentProvider {
                 int lastStringKey = -1;
                 long currentInsert;
                 Cursor translationCursor = null;
-                String log = "bulkInsert " + match;
+
                 try {
                     for (ContentValues value : values) {
 
@@ -422,6 +423,8 @@ public class FmiProvider extends ContentProvider {
                     db.endTransaction();
                 }
                 return inserts;
+            // TODO: implement bulk insert for categories
+            // TODO: implement bulk insert for posts
             default:
                 return super.bulkInsert(uri, values);
         }
