@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sync-adapter
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:contentAuthority="ro.unibuc.fmi.fmi"
+    android:accountType="fmi.unibuc.ro"
+    android:userVisible="false"
+    android:allowParallelSyncs="false"
+    android:supportsUploading="false"
+    android:isAlwaysSyncable="true" />

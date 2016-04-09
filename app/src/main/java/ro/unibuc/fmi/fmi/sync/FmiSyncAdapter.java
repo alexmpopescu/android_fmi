@@ -49,6 +49,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
     }
 
     private void parseCategories(String categoriesJsonStr) {
+        // TODO: create test case for this method
         try {
             JSONArray baseArray = new JSONArray(categoriesJsonStr);
             Vector<ContentValues> translationContentValuesVector = new Vector<>();
@@ -60,15 +61,15 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
                 String _id = baseElement.getString("_id");
                 int stringKey;
 
-                Cursor category = getContext().getContentResolver().query(
+                Cursor categoryCursor = getContext().getContentResolver().query(
                         FmiContract.CategoryEntry.CONTENT_URI,
                         new String[]{FmiContract.CategoryEntry.COLUMN_NAME_STRING_KEY},
                         FmiContract.CategoryEntry._ID + " = ?",
                         new String[]{_id},
                         null);
 
-                if (category.moveToFirst()) {
-                    stringKey = category.getInt(category.getColumnIndex(
+                if (categoryCursor.moveToFirst()) {
+                    stringKey = categoryCursor.getInt(categoryCursor.getColumnIndex(
                             FmiContract.CategoryEntry.COLUMN_NAME_STRING_KEY));
                 } else {
                     Uri newString = getContext().getContentResolver().insert(
@@ -80,6 +81,8 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
                     newCategoryValues.put(FmiContract.CategoryEntry._ID, _id);
                     categoryContentValuesVector.add(newCategoryValues);
                 }
+
+                categoryCursor.close();
 
                 Iterator<String> keys = title.keys();
 
