@@ -3,6 +3,8 @@ package ro.unibuc.fmi.fmi.data;
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.util.Log;
+
 import ro.unibuc.fmi.fmi.data.FmiContract.*;
 
 /**
@@ -29,15 +31,15 @@ public class FmiDbHelper extends SQLiteOpenHelper {
                 "FOREIGN KEY (" + TranslationEntry.COLUMN_STRING_KEY + ") REFERENCES " +
                 StringEntry.TABLE_NAME + " (" + StringEntry._ID + "));";
         final String SQL_CREATE_CATEGORIES = "CREATE TABLE " + CategoryEntry.TABLE_NAME + " (" +
-                CategoryEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                CategoryEntry._ID + " TEXT PRIMARY KEY, " +
                 CategoryEntry.COLUMN_NAME_STRING_KEY + " INTEGER NOT NULL, " +
                 "FOREIGN KEY ("+CategoryEntry.COLUMN_NAME_STRING_KEY + ") REFERENCES " +
                 StringEntry.TABLE_NAME + " (" + StringEntry._ID + "));";
         final String SQL_CREATE_POSTS = " CREATE TABLE " + PostEntry.TABLE_NAME + " (" +
-                PostEntry._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                PostEntry._ID + " TEXT PRIMARY KEY, " +
                 PostEntry.COLUMN_TITLE_STRING_KEY + " INTEGER, " +
                 PostEntry.COLUMN_CONTENT_STRING_KEY + " INTEGER NOT NULL, " +
-                PostEntry.COLUMN_CATEGORY_KEY + " INTEGER NOT NULL, " +
+                PostEntry.COLUMN_CATEGORY_KEY + " TEXT NOT NULL, " +
                 "FOREIGN KEY (" + PostEntry.COLUMN_TITLE_STRING_KEY + ") REFERENCES " +
                 StringEntry.TABLE_NAME + " (" + StringEntry._ID + "), " +
                 "FOREIGN KEY (" + PostEntry.COLUMN_CONTENT_STRING_KEY + ") REFERENCES " +
@@ -49,6 +51,8 @@ public class FmiDbHelper extends SQLiteOpenHelper {
         db.execSQL(SQL_CREATE_TRANSLATIONS);
         db.execSQL(SQL_CREATE_CATEGORIES);
         db.execSQL(SQL_CREATE_POSTS);
+
+        Log.d(this.getClass().toString(), "Database created");
     }
 
     @Override
@@ -57,6 +61,7 @@ public class FmiDbHelper extends SQLiteOpenHelper {
         db.execSQL("DROP TABLE IF EXISTS " + CategoryEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + TranslationEntry.TABLE_NAME);
         db.execSQL("DROP TABLE IF EXISTS " + StringEntry.TABLE_NAME);
+        Log.d(this.getClass().toString(), "Dropped the tables");
         onCreate(db);
     }
 }

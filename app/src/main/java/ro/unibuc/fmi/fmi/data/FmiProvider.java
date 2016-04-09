@@ -6,8 +6,10 @@ import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.support.annotation.Nullable;
+import android.util.Log;
 
 import ro.unibuc.fmi.fmi.data.FmiContract.*;
 
@@ -27,6 +29,38 @@ public class FmiProvider extends ContentProvider {
     static final int TRANSLATION = 300;
     static final int STRING = 400;
 
+    private static final SQLiteQueryBuilder sCategoryWithPostsQueryBuilder;
+    private static final SQLiteQueryBuilder sCategoryQueryBuilder;
+
+
+    static {
+        sCategoryWithPostsQueryBuilder = new SQLiteQueryBuilder();
+        sCategoryQueryBuilder = new SQLiteQueryBuilder();
+
+        sCategoryWithPostsQueryBuilder.setTables(
+                PostEntry.TABLE_NAME + " JOIN " +
+                        CategoryEntry.TABLE_NAME +
+                        " ON " + PostEntry.TABLE_NAME +
+                        "." + PostEntry.COLUMN_CATEGORY_KEY +
+                        " = " + CategoryEntry.TABLE_NAME +
+                        "." + CategoryEntry._ID + " JOIN " +
+                        TranslationEntry.TABLE_NAME +
+                        " ON " + PostEntry.TABLE_NAME +
+                        "." + PostEntry.COLUMN_TITLE_STRING_KEY +
+                        " = " + TranslationEntry.TABLE_NAME +
+                        "." + TranslationEntry.COLUMN_STRING_KEY
+        );
+
+        sCategoryQueryBuilder.setTables(
+                CategoryEntry.TABLE_NAME + " JOIN " +
+                        TranslationEntry.TABLE_NAME +
+                        " ON " + CategoryEntry.TABLE_NAME +
+                        "." + CategoryEntry.COLUMN_NAME_STRING_KEY +
+                        " = " + TranslationEntry.TABLE_NAME +
+                        "." + TranslationEntry.COLUMN_STRING_KEY
+        );
+    }
+
     static UriMatcher buildUriMatcher() {
         final UriMatcher matcher = new UriMatcher(UriMatcher.NO_MATCH);
         final String authority = FmiContract.CONTENT_AUTHORITY;
@@ -36,9 +70,9 @@ public class FmiProvider extends ContentProvider {
         matcher.addURI(authority, FmiContract.PATH_STRING, STRING);
         matcher.addURI(authority, FmiContract.PATH_TRANSLATION, TRANSLATION);
 
-        matcher.addURI(authority, FmiContract.PATH_CATEGORY + "/*", CATEGORY_WITH_TRANSLATION);
-        matcher.addURI(authority, FmiContract.PATH_CATEGORY + "/*/*", POSTS_WITH_TRANSLATION_BY_CATEGORY);
-        matcher.addURI(authority, FmiContract.PATH_POST + "/*/*", POST_WITH_TRANSLATION);
+        matcher.addURI(authority, FmiContract.PATH_CATEGORY + "/translation", CATEGORY_WITH_TRANSLATION);
+        matcher.addURI(authority, FmiContract.PATH_POST + "/translation", POSTS_WITH_TRANSLATION_BY_CATEGORY);
+        matcher.addURI(authority, FmiContract.PATH_POST + "/translation/*", POST_WITH_TRANSLATION);
 
         return matcher;
     }
@@ -46,6 +80,7 @@ public class FmiProvider extends ContentProvider {
     @Override
     public boolean onCreate() {
         fmiDbHelper = new FmiDbHelper(getContext());
+        Log.d("FmiProvider", "Provider created");
         return true;
     }
 
@@ -54,8 +89,6 @@ public class FmiProvider extends ContentProvider {
     public Cursor query(Uri uri, String[] projection, String selection, String[] selectionArgs, String sortOrder) {
 
         Cursor retCursor;
-        String locale;
-        String _id;
         switch (uriMatcher.match(uri)) {
             case CATEGORY:
                 retCursor = fmiDbHelper.getReadableDatabase().query(
@@ -98,18 +131,28 @@ public class FmiProvider extends ContentProvider {
                         sortOrder);
                 break;
             case CATEGORY_WITH_TRANSLATION:
-                locale = uri.getPathSegments().get(1);
-                retCursor = getCategories(locale);
+                retCursor = sCategoryQueryBuilder.query(
+                        fmiDbHelper.getReadableDatabase(),
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder
+                );
                 break;
             case POSTS_WITH_TRANSLATION_BY_CATEGORY:
-                locale = uri.getPathSegments().get(1);
-                _id = uri.getPathSegments().get(2);
-                retCursor = getCategoryWithPosts(_id, locale);
+                retCursor = sCategoryWithPostsQueryBuilder.query(
+                        fmiDbHelper.getReadableDatabase(),
+                        projection,
+                        selection,
+                        selectionArgs,
+                        null,
+                        null,
+                        sortOrder);
                 break;
             case POST_WITH_TRANSLATION:
-                locale = uri.getPathSegments().get(1);
-                _id = uri.getPathSegments().get(2);
-                retCursor = getPost(_id, locale);
+                retCursor = getPost(selection, selectionArgs);
                 break;
             default:
                 throw new UnsupportedOperationException("Unknown uri " + uri);
@@ -118,7 +161,7 @@ public class FmiProvider extends ContentProvider {
         return retCursor;
     }
 
-    private Cursor getPost(String _id, String locale) {
+    private Cursor getPost(String selection, String[] selectionArgs) {
         String sql = "SELECT p1." + PostEntry._ID + ", t1." + TranslationEntry.COLUMN_VALUE +
                 " AS " + PostEntry.COLUMN_TITLE_STRING_KEY + ", (SELECT t2." +
                 TranslationEntry.COLUMN_VALUE + " FROM " + PostEntry.TABLE_NAME + " p2 JOIN " +
@@ -128,23 +171,22 @@ public class FmiProvider extends ContentProvider {
                 TranslationEntry.COLUMN_LOCALE + " LIMIT 1) AS " + PostEntry.COLUMN_CONTENT_STRING_KEY +
                 " FROM " + PostEntry.TABLE_NAME + " p1 JOIN " + TranslationEntry.TABLE_NAME +
                 " t1 ON p1." + PostEntry.COLUMN_TITLE_STRING_KEY + " = t1." +
-                TranslationEntry.COLUMN_STRING_KEY + " WHERE p1." + PostEntry._ID + " = ? AND t1." +
-                TranslationEntry.COLUMN_LOCALE + " = ?";
+                TranslationEntry.COLUMN_STRING_KEY + " WHERE " + selection;
 
         return fmiDbHelper.getReadableDatabase().rawQuery(sql,
-                new String[] {_id, locale});
+                selectionArgs);
     }
 
-    private Cursor getCategoryWithPosts(String _id, String locale) {
+    private Cursor getCategoryWithPosts(String selection, String[] selectionArgs, String sortOrder) {
         String sql = "SELECT p1." + PostEntry._ID + ", t1." + TranslationEntry.COLUMN_VALUE +
                 " AS " + PostEntry.COLUMN_TITLE_STRING_KEY + " FROM " + PostEntry.TABLE_NAME +
                 " p1 JOIN " + CategoryEntry.TABLE_NAME + " c1 ON p1." + PostEntry.COLUMN_CATEGORY_KEY +
                 " = c1." + CategoryEntry._ID + " JOIN " + TranslationEntry.TABLE_NAME + " t1 ON p1." +
                 PostEntry.COLUMN_TITLE_STRING_KEY + " = t1." + TranslationEntry.COLUMN_STRING_KEY +
-                " WHERE c1." + CategoryEntry._ID + " = ? AND t1." + TranslationEntry.COLUMN_LOCALE + " = ?";
+                " WHERE " + selection + " ORDER BY " + sortOrder;
 
         return fmiDbHelper.getReadableDatabase().rawQuery(sql,
-                new String[] {_id, locale});
+                selectionArgs);
     }
 
     private Cursor getCategories(String locale) {
@@ -153,7 +195,7 @@ public class FmiProvider extends ContentProvider {
                 " AS " + CategoryEntry.COLUMN_NAME_STRING_KEY + " FROM " + CategoryEntry.TABLE_NAME +
                 " c1 JOIN " + TranslationEntry.TABLE_NAME + " t1 ON c1." +
                 CategoryEntry.COLUMN_NAME_STRING_KEY + " = t1." + TranslationEntry.COLUMN_STRING_KEY +
-                " WHERE t1." + TranslationEntry.COLUMN_LOCALE + " = ?" ;
+                " WHERE t1." + TranslationEntry.COLUMN_LOCALE + " = ?";
 
         return fmiDbHelper.getReadableDatabase().rawQuery(sql, new String[]{locale});
     }
@@ -167,7 +209,7 @@ public class FmiProvider extends ContentProvider {
         switch (match) {
             case CATEGORY:
             case CATEGORY_WITH_TRANSLATION:
-                return  CategoryEntry.CONTENT_TYPE;
+                return CategoryEntry.CONTENT_TYPE;
             case POST:
             case POSTS_WITH_TRANSLATION_BY_CATEGORY:
                 return PostEntry.CONTENT_TYPE;
@@ -282,6 +324,107 @@ public class FmiProvider extends ContentProvider {
         if (updatedRows > 0)
             getContext().getContentResolver().notifyChange(uri, null);
         return updatedRows;
+    }
+
+    @Override
+    public int bulkInsert(Uri uri, ContentValues[] values) {
+        final SQLiteDatabase db = fmiDbHelper.getWritableDatabase();
+        final int match = uriMatcher.match(uri);
+        int inserts;
+
+        switch (match) {
+            case TRANSLATION:
+                db.beginTransaction();
+                inserts = 0;
+                int lastStringKey = -1;
+                long currentInsert;
+                Cursor translationCursor = null;
+                String log = "bulkInsert " + match;
+                try {
+                    for (ContentValues value : values) {
+
+                        Log.d(log, "Considering content value with string " +
+                                value.getAsInteger(TranslationEntry.COLUMN_STRING_KEY) +
+                                " locale " + value.getAsString(TranslationEntry.COLUMN_LOCALE) +
+                                " value " + value.getAsString(TranslationEntry.COLUMN_VALUE));
+
+                        if (!value.containsKey(TranslationEntry.COLUMN_STRING_KEY) ||
+                                !value.containsKey(TranslationEntry.COLUMN_LOCALE) ||
+                                !value.containsKey(TranslationEntry.COLUMN_VALUE))
+                            continue;
+
+                        if (value.getAsInteger(TranslationEntry.COLUMN_STRING_KEY) != lastStringKey) {
+
+                            Log.d(log, "New string key, get all translations");
+
+                            lastStringKey = value.getAsInteger(TranslationEntry.COLUMN_STRING_KEY);
+
+                            if (translationCursor != null)
+                                translationCursor.close();
+
+                            translationCursor = db.query(
+                                    TranslationEntry.TABLE_NAME,
+                                    new String[]{
+                                            TranslationEntry._ID,
+                                            TranslationEntry.COLUMN_LOCALE,
+                                            TranslationEntry.COLUMN_VALUE
+                                    },
+                                    TranslationEntry.COLUMN_STRING_KEY + " = ?",
+                                    new String[]{value.getAsInteger(TranslationEntry.COLUMN_STRING_KEY).toString()},
+                                    null,
+                                    null,
+                                    null);
+                        }
+
+                        if (translationCursor == null)
+                            throw new UnknownError("translationCursor is null");
+
+                        if (translationCursor.moveToFirst()) {
+                            Log.d(log, "Translations found");
+                            boolean foundLocale = false;
+                            do {
+                                if (translationCursor.getString(translationCursor.getColumnIndex(TranslationEntry.COLUMN_LOCALE)).equals(value.getAsString(TranslationEntry.COLUMN_LOCALE))) {
+                                    foundLocale = true;
+                                    break;
+                                }
+                            }
+                            while (translationCursor.moveToNext());
+
+
+                            if (foundLocale) {
+                                Log.d(log, "Locale found, updating");
+                                if (!translationCursor.getString(translationCursor.getColumnIndex(TranslationEntry.COLUMN_VALUE)).equals(value.getAsString(TranslationEntry.COLUMN_VALUE)))
+                                    db.update(TranslationEntry.TABLE_NAME,
+                                            value,
+                                            TranslationEntry._ID + " = ?",
+                                            new String[]{translationCursor.getString(translationCursor.getColumnIndex(TranslationEntry._ID))});
+                                // prevent insert statement below
+                                continue;
+                            }
+                            Log.d(log, "Locale not found");
+                        }
+
+                        Log.d(log, "No translations found, inserting");
+
+                        // if there is no translation for this string or the locale was not found
+                        currentInsert = db.insert(TranslationEntry.TABLE_NAME, null, value);
+                        Log.d(log, "Inserted record with id " + currentInsert);
+
+                        if (currentInsert > 0)
+                            inserts++;
+                    }
+
+                    if (translationCursor != null)
+                        translationCursor.close();
+
+                    db.setTransactionSuccessful();
+                } finally {
+                    db.endTransaction();
+                }
+                return inserts;
+            default:
+                return super.bulkInsert(uri, values);
+        }
     }
 
     @Override
