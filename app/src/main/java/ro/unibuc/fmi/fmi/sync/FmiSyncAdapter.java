@@ -5,7 +5,6 @@ import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
 import android.content.SyncResult;
 import android.database.Cursor;
 import android.net.Uri;
@@ -72,8 +71,13 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
                     stringKey = categoryCursor.getInt(categoryCursor.getColumnIndex(
                             FmiContract.CategoryEntry.COLUMN_NAME_STRING_KEY));
                 } else {
+                    /* A small hack:
+                     * this ContentValues is required to provide a null when inserting into
+                     * strings table as this table has only one auto-incremented column, _id */
+                    ContentValues stringContentValues = new ContentValues();
+                    stringContentValues.put(FmiContract.StringEntry._ID, (Integer)null);
                     Uri newString = getContext().getContentResolver().insert(
-                            FmiContract.StringEntry.CONTENT_URI, null);
+                            FmiContract.StringEntry.CONTENT_URI, stringContentValues);
 
                     stringKey = Integer.parseInt(newString.getPathSegments().get(1));
                     ContentValues newCategoryValues = new ContentValues();
