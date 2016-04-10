@@ -1,6 +1,8 @@
 package ro.unibuc.fmi.fmi.sync;
 
+import android.content.ContentValues;
 import android.database.Cursor;
+import android.net.Uri;
 import android.test.AndroidTestCase;
 import android.util.Log;
 
@@ -41,6 +43,22 @@ public class TestSync extends AndroidTestCase {
 
     public void testParseCategories() {
         FmiSyncAdapter syncAdapter = new FmiSyncAdapter(mContext, false);
+
+        ContentValues stringContentValues = new ContentValues();
+        stringContentValues.put(StringEntry._ID, (Integer) null);
+        Uri newStringUri = mContext.getContentResolver().insert(StringEntry.CONTENT_URI, stringContentValues);
+        int newStringKey = Integer.parseInt(newStringUri.getPathSegments().get(1));
+
+        ContentValues translationContentValues = new ContentValues();
+        translationContentValues.put(TranslationEntry.COLUMN_STRING_KEY, newStringKey);
+        translationContentValues.put(TranslationEntry.COLUMN_LOCALE, "ro");
+        translationContentValues.put(TranslationEntry.COLUMN_VALUE, "Noutati");
+        mContext.getContentResolver().insert(TranslationEntry.CONTENT_URI, translationContentValues);
+
+        ContentValues categoryContentValues = new ContentValues();
+        categoryContentValues.put(CategoryEntry._ID, "tc5rmYDRpjMWFi5Xb");
+        categoryContentValues.put(CategoryEntry.COLUMN_NAME_STRING_KEY, newStringKey);
+        mContext.getContentResolver().insert(CategoryEntry.CONTENT_URI, categoryContentValues);
 
         try {
             Method method = FmiSyncAdapter.class.getDeclaredMethod("parseCategories", String.class);

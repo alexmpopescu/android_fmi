@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">FMI</string>
     <string name="action_settings">Settings</string>
-    <string name="section_format">Hello World from section: %1$d</string>
+    <string name="section_format">Hello World from section: %s</string>
+    <string name="content_authority">ro.unibuc.fmi.fmi</string>
+    <string name="account_type">fmi.unibuc.ro</string>
 </resources>

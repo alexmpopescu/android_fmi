@@ -1,8 +1,10 @@
 package ro.unibuc.fmi.fmi;
 
-import android.os.AsyncTask;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
+import android.app.LoaderManager;
+import android.content.Context;
+import android.content.CursorLoader;
+import android.content.Loader;
+import android.database.Cursor;
 import android.support.design.widget.TabLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -21,20 +23,12 @@ import android.view.ViewGroup;
 
 import android.widget.TextView;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import ro.unibuc.fmi.fmi.data.FmiContract;
+import ro.unibuc.fmi.fmi.sync.FmiSyncAdapter;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.ArrayList;
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
 
-public class MainActivity extends AppCompatActivity {
-
+    private static final int CATEGORY_LOADER = 1;
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
      * fragments for each of the sections. We use a
@@ -61,7 +55,7 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
-        mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
+        mSectionsPagerAdapter = new SectionsPagerAdapter(this, getSupportFragmentManager(), null);
 
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
@@ -70,18 +64,10 @@ public class MainActivity extends AppCompatActivity {
         tabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
         tabLayout.setupWithViewPager(mViewPager);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+        FmiSyncAdapter.initializeSyncAdapter(this);
 
-        mSectionsPagerAdapter.FetchData();
+        getLoaderManager().initLoader(CATEGORY_LOADER, null, this);
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -105,6 +91,29 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        return new CursorLoader(this,
+                FmiContract.CategoryEntry.CONTENT_URI.buildUpon().appendPath("translation").build(),
+                new String[] {
+                        FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID,
+                        FmiContract.TranslationEntry.COLUMN_VALUE,
+                },
+                FmiContract.TranslationEntry.COLUMN_LOCALE + " = ?",
+                new String[] {"ro"},    // TODO: replace with shared preference
+                null);
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        mSectionsPagerAdapter.swapCursor(data);
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+        mSectionsPagerAdapter.swapCursor(null);
+    }
+
     /**
      * A placeholder fragment containing a simple view.
      */
@@ -122,10 +131,10 @@ public class MainActivity extends AppCompatActivity {
          * Returns a new instance of this fragment for the given section
          * number.
          */
-        public static PlaceholderFragment newInstance(int sectionNumber) {
+        public static PlaceholderFragment newInstance(String sectionName) {
             PlaceholderFragment fragment = new PlaceholderFragment();
             Bundle args = new Bundle();
-            args.putInt(ARG_SECTION_NUMBER, sectionNumber);
+            args.putString(ARG_SECTION_NUMBER, sectionName);
             fragment.setArguments(args);
             return fragment;
         }
@@ -135,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
                                  Bundle savedInstanceState) {
             View rootView = inflater.inflate(R.layout.fragment_main, container, false);
             TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-            textView.setText(getString(R.string.section_format, getArguments().getInt(ARG_SECTION_NUMBER)));
+            textView.setText(getString(R.string.section_format, getArguments().getString(ARG_SECTION_NUMBER)));
             return rootView;
         }
     }
@@ -144,135 +153,26 @@ public class MainActivity extends AppCompatActivity {
      * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
      * one of the sections/tabs/pages.
      */
-    public class SectionsPagerAdapter extends FragmentPagerAdapter {
+    public class SectionsPagerAdapter extends CursorFragmentPagerAdapter {
 
-        String[] pages = {"test1", "test2", "test3"};
-
-        public class CategoryFetchTask extends AsyncTask<Void, Void, String[]>
-        {
-            private String[] parseCategories(String categoriesJsonStr) {
-                String[] strings;
-                try {
-                    JSONArray baseArray = new JSONArray(categoriesJsonStr);
-                    strings = new String[baseArray.length()];
-
-                    for (int i = 0; i < baseArray.length(); i++)
-                    {
-                        JSONObject baseElement = baseArray.getJSONObject(i);
-                        JSONObject title = baseElement.getJSONObject("title");
-                        strings[i] = title.getString("ro");
-                    }
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                    return null;
-                }
-
-                return strings;
-            }
-
-            @Override
-            protected String[] doInBackground(Void... params) {
-                String host = "10.11.69.51:3000";
-
-                HttpURLConnection urlConnection = null;
-                BufferedReader reader = null;
-
-                // Will contain the raw JSON response as a string.
-                String categoriesJsonStr = null;
-
-                try {
-                    // Construct the URL for the OpenWeatherMap query
-                    // Possible parameters are avaiable at OWM's forecast API page, at
-                    // http://openweathermap.org/API#forecast
-                    URL url = new URL("http://"+host+"/api/categories");
-
-                    // Create the request to OpenWeatherMap, and open the connection
-                    urlConnection = (HttpURLConnection) url.openConnection();
-                    urlConnection.setRequestMethod("GET");
-                    urlConnection.connect();
-
-                    // Read the input stream into a String
-                    InputStream inputStream = urlConnection.getInputStream();
-                    StringBuffer buffer = new StringBuffer();
-                    if (inputStream == null) {
-                        // Nothing to do.
-                        return null;
-                    }
-                    reader = new BufferedReader(new InputStreamReader(inputStream));
-
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        // Since it's JSON, adding a newline isn't necessary (it won't affect parsing)
-                        // But it does make debugging a *lot* easier if you print out the completed
-                        // buffer for debugging.
-                        buffer.append(line + "\n");
-                    }
-
-                    if (buffer.length() == 0) {
-                        // Stream was empty.  No point in parsing.
-                        return null;
-                    }
-                    categoriesJsonStr = buffer.toString();
-                } catch (IOException e) {
-                    Log.e(this.getClass().getName(), "Error ", e);
-                    return null;
-                } finally{
-                    if (urlConnection != null) {
-                        urlConnection.disconnect();
-                    }
-                    if (reader != null) {
-                        try {
-                            reader.close();
-                        } catch (final IOException e) {
-                            Log.e(this.getClass().getName(), "Error closing stream", e);
-                        }
-                    }
-                }
-
-                return parseCategories(categoriesJsonStr);
-            }
-
-            @Override
-            protected void onPostExecute(String[] strings) {
-                super.onPostExecute(strings);
-                if (strings != null && strings.length > 0) {
-                    pages = strings;
-                    Log.i(this.getClass().getName(), "Fetched categories");
-                    mSectionsPagerAdapter.notifyDataSetChanged();
-                    tabLayout.invalidate();
-                }
-                else
-                {
-                    Log.e(this.getClass().getName(), "Fetched categories failed");
-                }
-            }
-        }
-
-        public SectionsPagerAdapter(FragmentManager fm) {
-            super(fm);
-        }
-
-        public void FetchData() {
-            CategoryFetchTask fetchCategories = new CategoryFetchTask();
-            fetchCategories.execute();
-            Log.i(this.getClass().getName(), "Started category fetch task");
+        public SectionsPagerAdapter(Context context, FragmentManager fm, Cursor cursor) {
+            super(context, fm, cursor);
         }
 
         @Override
-        public Fragment getItem(int position) {
-            // getItem is called to instantiate the fragment for the given page.
-            // Return a PlaceholderFragment (defined as a static inner class below).
-            return PlaceholderFragment.newInstance(position + 1);
+        protected CharSequence getPageTitle(Context mContext, Cursor mCursor) {
+            String categoryTitle = mCursor.getString(mCursor.getColumnIndex(FmiContract.TranslationEntry.COLUMN_VALUE));
+            Log.d(this.getClass().getSimpleName(), "Returning title for category " + categoryTitle);
+            return categoryTitle;
         }
 
         @Override
-        public int getCount() {
-            return pages.length;
-        }
-
-        @Override
-        public CharSequence getPageTitle(int position) {
-            return pages[position];
+        public Fragment getItem(Context context, Cursor cursor) {
+            String categoryTitle = cursor.getString(cursor.getColumnIndex(FmiContract.TranslationEntry.COLUMN_VALUE));
+            Log.d(this.getClass().getSimpleName(), "Returning fragment for category "+categoryTitle);
+            return PlaceholderFragment.newInstance(categoryTitle);
         }
     }
 }
+
+

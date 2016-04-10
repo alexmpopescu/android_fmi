@@ -1,13 +1,17 @@
 package ro.unibuc.fmi.fmi.sync;
 
 import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
+import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SyncRequest;
 import android.content.SyncResult;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -26,6 +30,7 @@ import java.util.Iterator;
 import java.util.Vector;
 
 import ro.unibuc.fmi.fmi.BuildConfig;
+import ro.unibuc.fmi.fmi.R;
 import ro.unibuc.fmi.fmi.data.FmiContract;
 
 /**
@@ -33,17 +38,23 @@ import ro.unibuc.fmi.fmi.data.FmiContract;
  */
 public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
+    private static final int SYNC_INTERVAL = 60 * 60 * 3;
+    private static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
+
     public FmiSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
     }
 
     @Override
     public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {
+        Log.d(this.getClass().getName(), "Start syncing");
         try {
             parseCategories(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/categories")));
             // TODO: download and parse posts
+            Log.d(this.getClass().getName(), "Sync successful");
         } catch (MalformedURLException e) {
             e.printStackTrace();
+            Log.e(this.getClass().getName(), "Sync error");
         }
     }
 
@@ -175,5 +186,52 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
         }
 
         return returnJsonStr;
+    }
+
+    public static Account getSyncAccount(Context context) {
+        AccountManager accountManager =
+                (AccountManager) context.getSystemService(Context.ACCOUNT_SERVICE);
+        Account newAccount = new Account(context.getString(R.string.app_name),
+                context.getString(R.string.account_type));
+
+        if (null == accountManager.getPassword(newAccount)) {
+            if (!accountManager.addAccountExplicitly(newAccount, "", null))
+                return null;
+            onAccountCreated(newAccount, context);
+        }
+        return newAccount;
+    }
+
+    private static void onAccountCreated(Account newAccount, Context context) {
+        FmiSyncAdapter.configurePeriodicSync(context, SYNC_INTERVAL, SYNC_FLEXTIME);
+        ContentResolver.setSyncAutomatically(newAccount, context.getString(R.string.content_authority), true);
+        syncImmediately(context);
+    }
+
+    private static void syncImmediately(Context context) {
+        Bundle bundle = new Bundle();
+        bundle.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true);
+        bundle.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
+        ContentResolver.requestSync(getSyncAccount(context),
+                context.getString(R.string.content_authority), bundle);
+    }
+
+    private static void configurePeriodicSync(Context context, int syncInterval, int syncFlextime) {
+        Account account = getSyncAccount(context);
+        String authority = context.getString(R.string.content_authority);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            SyncRequest request = new SyncRequest.Builder().
+                    syncPeriodic(syncInterval, syncFlextime).
+                    setSyncAdapter(account, authority).
+                    setExtras(new Bundle()).build();
+            ContentResolver.requestSync(request);
+        } else {
+            ContentResolver.addPeriodicSync(account,
+                    authority, new Bundle(), syncInterval);
+        }
+    }
+
+    public static void initializeSyncAdapter(Context context) {
+        getSyncAccount(context);
     }
 }

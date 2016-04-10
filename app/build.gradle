@@ -19,7 +19,7 @@ android {
     }
 
     buildTypes.each {
-        it.buildConfigField "String", "FMI_SERVER_ADDR", "\"10.11.69.51:3000\""
+        it.buildConfigField "String", "FMI_SERVER_ADDR", "\"192.168.0.101:3000\""
     }
 }
 
