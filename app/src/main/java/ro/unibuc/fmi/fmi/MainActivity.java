@@ -4,8 +4,12 @@ import android.app.LoaderManager;
 import android.content.Context;
 import android.content.CursorLoader;
 import android.content.Loader;
+import android.database.ContentObserver;
 import android.database.Cursor;
+import android.net.Uri;
+import android.os.Handler;
 import android.support.design.widget.TabLayout;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
@@ -44,6 +48,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
      */
     private ViewPager mViewPager;
     private TabLayout tabLayout;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         setContentView(R.layout.activity_main);
 
+        swipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.activity_main_swipe_refresh_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         // Create the adapter that will return a fragment for each of the three
@@ -63,6 +69,19 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         tabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
         tabLayout.setupWithViewPager(mViewPager);
+
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                FmiSyncAdapter.syncImmediately(getBaseContext());
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                }, 3000);
+            }
+        });
 
         FmiSyncAdapter.initializeSyncAdapter(this);
 
@@ -107,6 +126,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
         mSectionsPagerAdapter.swapCursor(data);
+        swipeRefreshLayout.setRefreshing(false);
     }
 
     @Override
@@ -149,10 +169,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         }
     }
 
-    /**
-     * A {@link FragmentPagerAdapter} that returns a fragment corresponding to
-     * one of the sections/tabs/pages.
-     */
     public class SectionsPagerAdapter extends CursorFragmentPagerAdapter {
 
         public SectionsPagerAdapter(Context context, FragmentManager fm, Cursor cursor) {

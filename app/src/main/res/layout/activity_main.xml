@@ -6,7 +6,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    tools:context="ro.unibuc.fmi.fmi.MainActivity">
+    tools:context="ro.unibuc.fmi.fmi.MainActivity"
+    android:theme="@style/AppTheme">
 
     <android.support.design.widget.AppBarLayout
         android:id="@+id/appbar"
@@ -37,12 +38,20 @@
                 android:id="@+id/sliding_tabs"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:tabMode="scrollable" />
-
-            <android.support.v4.view.ViewPager
-                android:id="@+id/container"
+                app:tabMode="scrollable"
+                android:theme="@style/AppTheme.Tabs"/>
+            <android.support.v4.widget.SwipeRefreshLayout
+                android:id="@+id/activity_main_swipe_refresh_layout"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="match_parent">
+
+                <android.support.v4.view.ViewPager
+                    android:id="@+id/container"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" />
+
+            </android.support.v4.widget.SwipeRefreshLayout>
+
     </LinearLayout>
 
 </android.support.design.widget.CoordinatorLayout>

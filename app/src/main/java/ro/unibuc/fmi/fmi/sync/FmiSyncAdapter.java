@@ -23,6 +23,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -47,19 +48,20 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     @Override
     public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {
-        Log.d(this.getClass().getName(), "Start syncing");
+        Log.d(this.getClass().getSimpleName(), "Start syncing");
         try {
             parseCategories(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/categories")));
             // TODO: download and parse posts
-            Log.d(this.getClass().getName(), "Sync successful");
+            Log.d(this.getClass().getSimpleName(), "Sync successful");
         } catch (MalformedURLException e) {
             e.printStackTrace();
-            Log.e(this.getClass().getName(), "Sync error");
+            Log.e(this.getClass().getSimpleName(), "Sync error");
+        } catch (Exception e) {
+            Log.e(this.getClass().getSimpleName(), "An error occurred");
         }
     }
 
     private void parseCategories(String categoriesJsonStr) {
-        // TODO: create test case for this method
         try {
             JSONArray baseArray = new JSONArray(categoriesJsonStr);
             Vector<ContentValues> translationContentValuesVector = new Vector<>();
@@ -132,7 +134,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     // TODO: add method for parsing posts
 
-    private String performHttpRequest(URL url) {
+    private String performHttpRequest(URL url) throws ConnectException {
 
         HttpURLConnection urlConnection = null;
         BufferedReader reader = null;
@@ -208,7 +210,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
         syncImmediately(context);
     }
 
-    private static void syncImmediately(Context context) {
+    public static void syncImmediately(Context context) {
         Bundle bundle = new Bundle();
         bundle.putBoolean(ContentResolver.SYNC_EXTRAS_EXPEDITED, true);
         bundle.putBoolean(ContentResolver.SYNC_EXTRAS_MANUAL, true);
