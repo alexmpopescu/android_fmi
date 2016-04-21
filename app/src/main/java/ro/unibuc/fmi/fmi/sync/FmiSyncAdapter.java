@@ -51,7 +51,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
         Log.d(this.getClass().getSimpleName(), "Start syncing");
         try {
             parseCategories(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/categories")));
-            // TODO: download and parse posts
+            parsePosts(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/posts")));
             Log.d(this.getClass().getSimpleName(), "Sync successful");
         } catch (MalformedURLException e) {
             e.printStackTrace();
@@ -132,7 +132,95 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     }
 
-    // TODO: add method for parsing posts
+    private void parsePosts(String postsJsonString) {
+        try {
+            JSONArray baseArray = new JSONArray(postsJsonString);
+            Vector<ContentValues> translationContentValuesVector = new Vector<>();
+            Vector<ContentValues> postContentValuesVector = new Vector<>();
+            for (int i = 0; i < baseArray.length(); i++)
+            {
+                JSONObject baseElement = baseArray.getJSONObject(i);
+                JSONObject content = baseElement.getJSONObject("content");
+                JSONArray categories = baseElement.getJSONArray("categories");
+                String category = categories.getString(0);
+                String _id = baseElement.getString("_id");
+                int titleStringKey, contentStringKey;
+
+                Cursor postCursor = getContext().getContentResolver().query(
+                        FmiContract.PostEntry.CONTENT_URI,
+                        new String[]{
+                                FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY,
+                                FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY
+                        },
+                        FmiContract.PostEntry._ID + " = ?",
+                        new String[]{_id},
+                        null);
+
+                if (postCursor.moveToFirst()) {
+                    titleStringKey = postCursor.getInt(postCursor.getColumnIndex(
+                            FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY));
+                    contentStringKey = postCursor.getInt(postCursor.getColumnIndex(
+                            FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY));
+                } else {
+                    /* A small hack:
+                     * this ContentValues is required to provide a null when inserting into
+                     * strings table as this table has only one auto-incremented column, _id */
+                    ContentValues stringContentValues = new ContentValues();
+                    stringContentValues.put(FmiContract.StringEntry._ID, (Integer)null);
+                    Uri newTitleString = getContext().getContentResolver().insert(
+                            FmiContract.StringEntry.CONTENT_URI, stringContentValues);
+                    Uri newContentString = getContext().getContentResolver().insert(
+                            FmiContract.StringEntry.CONTENT_URI, stringContentValues);
+
+                    titleStringKey = Integer.parseInt(newTitleString.getPathSegments().get(1));
+                    contentStringKey = Integer.parseInt(newContentString.getPathSegments().get(1));
+                    ContentValues newPostValues = new ContentValues();
+                    newPostValues.put(FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY, titleStringKey);
+                    newPostValues.put(FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY, contentStringKey);
+                    newPostValues.put(FmiContract.PostEntry.COLUMN_CATEGORY_KEY, category);
+                    newPostValues.put(FmiContract.PostEntry._ID, _id);
+                    postContentValuesVector.add(newPostValues);
+                }
+
+                postCursor.close();
+
+                Iterator<String> keys = content.keys();
+
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    Log.d(this.getClass().toString(), "adding locale " + key);
+                    ContentValues titleContentValues = new ContentValues();
+                    titleContentValues.put(FmiContract.TranslationEntry.COLUMN_STRING_KEY, titleStringKey);
+                    titleContentValues.put(FmiContract.TranslationEntry.COLUMN_LOCALE,
+                            key);
+                    titleContentValues.put(FmiContract.TranslationEntry.COLUMN_VALUE,
+                            content.getString(key));
+                    translationContentValuesVector.add(titleContentValues);
+
+                    ContentValues contentContentValues = new ContentValues();
+                    contentContentValues.put(FmiContract.TranslationEntry.COLUMN_STRING_KEY, contentStringKey);
+                    contentContentValues.put(FmiContract.TranslationEntry.COLUMN_LOCALE,
+                            key);
+                    contentContentValues.put(FmiContract.TranslationEntry.COLUMN_VALUE,
+                            content.getString(key));
+                    translationContentValuesVector.add(contentContentValues);
+                }
+            }
+
+            ContentValues[] translationContentValuesArray = new ContentValues[translationContentValuesVector.size()];
+            translationContentValuesVector.toArray(translationContentValuesArray);
+            getContext().getContentResolver().bulkInsert(FmiContract.TranslationEntry.CONTENT_URI,
+                    translationContentValuesArray);
+
+            ContentValues[] categoryContentValuesArray = new ContentValues[postContentValuesVector.size()];
+            postContentValuesVector.toArray(categoryContentValuesArray);
+            getContext().getContentResolver().bulkInsert(FmiContract.PostEntry.CONTENT_URI,
+                    categoryContentValuesArray);
+
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
 
     private String performHttpRequest(URL url) throws ConnectException {
 
