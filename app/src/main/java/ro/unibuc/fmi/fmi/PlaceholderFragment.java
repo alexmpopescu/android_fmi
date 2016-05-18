@@ -1,7 +1,9 @@
 package ro.unibuc.fmi.fmi;
 
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
@@ -63,6 +65,8 @@ public class PlaceholderFragment extends Fragment implements android.support.v4.
 
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getActivity());
+
         return new CursorLoader(getActivity(),
                 FmiContract.PostEntry.CONTENT_URI.buildUpon().appendPath("translation").build(),
                 new String[] {
@@ -72,7 +76,7 @@ public class PlaceholderFragment extends Fragment implements android.support.v4.
                 FmiContract.TranslationEntry.COLUMN_LOCALE + " = ?" + " AND "+
                 FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID + " = ?",
                 new String[] {
-                        "ro",     // TODO: replace with shared preference
+                        sharedPref.getString(getActivity().getString(R.string.pref_language_key), "ro"),
                         categoryId
                 },
                 null);

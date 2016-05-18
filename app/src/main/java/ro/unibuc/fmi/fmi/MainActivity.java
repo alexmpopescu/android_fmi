@@ -5,8 +5,10 @@ import android.content.Context;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.design.widget.TabLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -26,7 +28,7 @@ import ro.unibuc.fmi.fmi.sync.FmiSyncAdapter;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
 
-    private static final int CATEGORY_LOADER = 1;
+    static final int CATEGORY_LOADER = 1;
     /**
      * The {@link android.support.v4.view.PagerAdapter} that will provide
      * fragments for each of the sections. We use a
@@ -43,6 +45,22 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     private ViewPager mViewPager;
     private TabLayout tabLayout;
     private SwipeRefreshLayout swipeRefreshLayout;
+
+    static Loader<Cursor> createCursor(Context context) {
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
+
+        return new CursorLoader(context,
+                FmiContract.CategoryEntry.CONTENT_URI.buildUpon().appendPath("translation").build(),
+                new String[] {
+                        FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID,
+                        FmiContract.TranslationEntry.COLUMN_VALUE,
+                },
+                FmiContract.TranslationEntry.COLUMN_LOCALE + " = ?",
+                new String[] {
+                        sharedPref.getString(context.getString(R.string.pref_language_key), "ro")
+                },
+                null);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,15 +125,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     @Override
     public Loader<Cursor> onCreateLoader(int id, Bundle args) {
-        return new CursorLoader(this,
-                FmiContract.CategoryEntry.CONTENT_URI.buildUpon().appendPath("translation").build(),
-                new String[] {
-                        FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID,
-                        FmiContract.TranslationEntry.COLUMN_VALUE,
-                },
-                FmiContract.TranslationEntry.COLUMN_LOCALE + " = ?",
-                new String[] {"ro"},    // TODO: replace with shared preference
-                null);
+        return createCursor(this);
     }
 
     @Override
