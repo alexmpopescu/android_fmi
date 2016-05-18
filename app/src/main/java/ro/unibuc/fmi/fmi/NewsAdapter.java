@@ -2,6 +2,7 @@ package ro.unibuc.fmi.fmi;
 
 import android.content.Context;
 import android.database.Cursor;
+import android.support.v4.view.ViewCompat;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -32,6 +33,7 @@ public class NewsAdapter extends CursorAdapter {
         View view = LayoutInflater.from(context).inflate(R.layout.fragment_post, parent, false);
         ViewHolder viewHolder = new ViewHolder(view);
         view.setTag(viewHolder);
+        ViewCompat.setElevation(view, 2);
         return view;
     }
 
