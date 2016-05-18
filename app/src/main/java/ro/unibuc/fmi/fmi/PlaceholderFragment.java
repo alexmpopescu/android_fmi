@@ -1,5 +1,6 @@
 package ro.unibuc.fmi.fmi;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
@@ -11,6 +12,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.GridView;
 
 import ro.unibuc.fmi.fmi.data.FmiContract;
@@ -57,6 +59,19 @@ public class PlaceholderFragment extends Fragment implements android.support.v4.
         GridView gridView = (GridView) rootView.findViewById(R.id.news_grid);
         mNewsAdapter = new NewsAdapter(getActivity(), null, 0);
         gridView.setAdapter(mNewsAdapter);
+        gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Cursor categoryCursor = (Cursor)parent.getItemAtPosition(position);
+                String post_id = categoryCursor.getString(categoryCursor.getColumnIndex(
+                        FmiContract.PostEntry.TABLE_NAME + "." +
+                                FmiContract.PostEntry._ID));
+
+                Intent intent = new Intent(getActivity(), PostViewActivity.class);
+                intent.putExtra(PostViewActivity.POST_ID, post_id);
+                startActivity(intent);
+            }
+        });
         categoryId = getArguments().getString(ARG_CATEGORY_ID);
         Log.d(getClass().getSimpleName(), "CreateView fot category " + categoryId);
         getLoaderManager().initLoader(hash(getArguments().getString(ARG_CATEGORY_ID)), null, this);

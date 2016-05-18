@@ -11,6 +11,9 @@ import android.net.Uri;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import ro.unibuc.fmi.fmi.data.FmiContract.*;
 
 /**
@@ -152,7 +155,13 @@ public class FmiProvider extends ContentProvider {
                         sortOrder);
                 break;
             case POST_WITH_TRANSLATION:
-                retCursor = getPost(selection, selectionArgs);
+                if (!selection.isEmpty())
+                    selection = selection + " AND ";
+                selection = selection + "p1." + PostEntry._ID + " = ?";
+                String[] finalSelectionArgs = new String[selectionArgs.length + 1];
+                System.arraycopy(selectionArgs, 0, finalSelectionArgs, 0, selectionArgs.length);
+                finalSelectionArgs[selectionArgs.length] = uri.getPathSegments().get(2);
+                retCursor = getPost(selection, finalSelectionArgs);
                 break;
             default:
                 throw new UnsupportedOperationException("Unknown uri " + uri);
@@ -173,6 +182,8 @@ public class FmiProvider extends ContentProvider {
                 " t1 ON p1." + PostEntry.COLUMN_TITLE_STRING_KEY + " = t1." +
                 TranslationEntry.COLUMN_STRING_KEY + " WHERE " + selection;
 
+        Log.d(getClass().getSimpleName(), sql);
+        Log.d(getClass().getSimpleName(), "sa[0] = " + selectionArgs[0] + " sa[1] = "+selectionArgs[1]);
         return fmiDbHelper.getReadableDatabase().rawQuery(sql,
                 selectionArgs);
     }
