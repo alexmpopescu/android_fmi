@@ -132,6 +132,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     }
 
+    // TODO: write test for post parse method
     private void parsePosts(String postsJsonString) {
         try {
             JSONArray baseArray = new JSONArray(postsJsonString);

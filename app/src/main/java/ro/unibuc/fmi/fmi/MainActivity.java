@@ -5,9 +5,7 @@ import android.content.Context;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
-import android.database.ContentObserver;
 import android.database.Cursor;
-import android.net.Uri;
 import android.os.Handler;
 import android.support.design.widget.TabLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -20,13 +18,8 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-
-import android.widget.TextView;
 
 import ro.unibuc.fmi.fmi.data.FmiContract;
 import ro.unibuc.fmi.fmi.sync.FmiSyncAdapter;
@@ -136,41 +129,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         mSectionsPagerAdapter.swapCursor(null);
     }
 
-    /**
-     * A placeholder fragment containing a simple view.
-     */
-    public static class PlaceholderFragment extends Fragment {
-        /**
-         * The fragment argument representing the section number for this
-         * fragment.
-         */
-        private static final String ARG_SECTION_NUMBER = "section_number";
-
-        public PlaceholderFragment() {
-        }
-
-        /**
-         * Returns a new instance of this fragment for the given section
-         * number.
-         */
-        public static PlaceholderFragment newInstance(String sectionName) {
-            PlaceholderFragment fragment = new PlaceholderFragment();
-            Bundle args = new Bundle();
-            args.putString(ARG_SECTION_NUMBER, sectionName);
-            fragment.setArguments(args);
-            return fragment;
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-            TextView textView = (TextView) rootView.findViewById(R.id.section_label);
-            textView.setText(getString(R.string.section_format, getArguments().getString(ARG_SECTION_NUMBER)));
-            return rootView;
-        }
-    }
-
     public class SectionsPagerAdapter extends CursorFragmentPagerAdapter {
 
         public SectionsPagerAdapter(Context context, FragmentManager fm, Cursor cursor) {
@@ -186,9 +144,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         @Override
         public Fragment getItem(Context context, Cursor cursor) {
-            String categoryTitle = cursor.getString(cursor.getColumnIndex(FmiContract.TranslationEntry.COLUMN_VALUE));
-            Log.d(this.getClass().getSimpleName(), "Returning fragment for category "+categoryTitle);
-            return PlaceholderFragment.newInstance(categoryTitle);
+            String categoryId = cursor.getString(cursor.getColumnIndex(FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID));
+            Log.d(this.getClass().getSimpleName(), "Returning fragment for category "+categoryId);
+            return PlaceholderFragment.newInstance(categoryId);
         }
     }
 }
