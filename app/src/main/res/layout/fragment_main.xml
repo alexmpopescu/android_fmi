@@ -14,6 +14,6 @@
         android:verticalSpacing="5dp"
         android:horizontalSpacing="5dp"
         android:clipToPadding="false"
-        android:padding="10dp"/>
+        android:padding="5dp"/>
 
 </RelativeLayout>
