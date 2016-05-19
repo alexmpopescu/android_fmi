@@ -40,17 +40,11 @@
                 android:layout_height="wrap_content"
                 app:tabMode="scrollable"
                 android:theme="@style/AppTheme.Tabs"/>
-            <android.support.v4.widget.SwipeRefreshLayout
-                android:id="@+id/activity_main_swipe_refresh_layout"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
 
                 <android.support.v4.view.ViewPager
                     android:id="@+id/container"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
-
-            </android.support.v4.widget.SwipeRefreshLayout>
 
     </LinearLayout>
 

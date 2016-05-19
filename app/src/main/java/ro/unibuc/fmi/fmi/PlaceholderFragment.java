@@ -4,10 +4,12 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.CursorLoader;
 import android.support.v4.content.Loader;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,6 +18,7 @@ import android.widget.AdapterView;
 import android.widget.GridView;
 
 import ro.unibuc.fmi.fmi.data.FmiContract;
+import ro.unibuc.fmi.fmi.sync.FmiSyncAdapter;
 
 /**
  * A placeholder fragment containing a simple view.
@@ -28,6 +31,7 @@ public class PlaceholderFragment extends Fragment implements android.support.v4.
     private static final String ARG_CATEGORY_ID = "category_id";
     private NewsAdapter mNewsAdapter;
     private String categoryId;
+    private SwipeRefreshLayout swipeRefreshLayout;
 
     public static int hash(String s) {
         int h = 0;
@@ -56,6 +60,19 @@ public class PlaceholderFragment extends Fragment implements android.support.v4.
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
+        swipeRefreshLayout = (SwipeRefreshLayout) rootView.findViewById(R.id.activity_main_swipe_refresh_layout);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                FmiSyncAdapter.syncImmediately(getContext());
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        swipeRefreshLayout.setRefreshing(false);
+                    }
+                }, 3000);
+            }
+        });;
         GridView gridView = (GridView) rootView.findViewById(R.id.news_grid);
         mNewsAdapter = new NewsAdapter(getActivity(), null, 0);
         gridView.setAdapter(mNewsAdapter);

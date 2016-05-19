@@ -44,7 +44,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
      */
     private ViewPager mViewPager;
     private TabLayout tabLayout;
-    private SwipeRefreshLayout swipeRefreshLayout;
 
     static Loader<Cursor> createCursor(Context context) {
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(context);
@@ -68,7 +67,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         setContentView(R.layout.activity_main);
 
-        swipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.activity_main_swipe_refresh_layout);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         // Create the adapter that will return a fragment for each of the three
@@ -78,36 +76,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.container);
         mViewPager.setAdapter(mSectionsPagerAdapter);
-        mViewPager.addOnPageChangeListener( new ViewPager.OnPageChangeListener() {
-            @Override
-            public void onPageScrolled( int position, float v, int i1 ) {
-            }
-
-            @Override
-            public void onPageSelected( int position ) {
-            }
-
-            @Override
-            public void onPageScrollStateChanged( int state ) {
-                swipeRefreshLayout.setEnabled( state == ViewPager.SCROLL_STATE_IDLE );
-            }
-        } );
 
         tabLayout = (TabLayout) findViewById(R.id.sliding_tabs);
         tabLayout.setupWithViewPager(mViewPager);
-
-        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                FmiSyncAdapter.syncImmediately(getBaseContext());
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        swipeRefreshLayout.setRefreshing(false);
-                    }
-                }, 3000);
-            }
-        });
 
         FmiSyncAdapter.initializeSyncAdapter(this);
 
@@ -145,7 +116,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
         mSectionsPagerAdapter.swapCursor(data);
-        swipeRefreshLayout.setRefreshing(false);
     }
 
     @Override
