@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">FMI</string>
     <string name="action_settings">Setări</string>
-    <string name="section_format">Hello World from section: %s</string>
 
     <string name="pref_language_label">Limba</string>
+    <string name="new_post_notification">Stire nouă</string>
 </resources>

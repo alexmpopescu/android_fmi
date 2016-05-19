@@ -261,7 +261,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
             NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getContext())
                     .setAutoCancel(true)
                     .setPriority(Notification.PRIORITY_LOW)
-                    .setContentTitle("New post")
+                    .setContentTitle(getContext().getString(R.string.new_post_notification))
                     .setContentText(newPosts[i].title)
                     .setSmallIcon(R.mipmap.fmi_small)
                     .setExtras(notificationBundle);
