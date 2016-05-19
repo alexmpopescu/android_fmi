@@ -2,17 +2,24 @@ package ro.unibuc.fmi.fmi.sync;
 
 import android.accounts.Account;
 import android.accounts.AccountManager;
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.content.AbstractThreadedSyncAdapter;
 import android.content.ContentProviderClient;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.SyncRequest;
 import android.content.SyncResult;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
+import android.text.Html;
 import android.util.Log;
 
 import org.json.JSONArray;
@@ -27,7 +34,9 @@ import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Vector;
 
 import ro.unibuc.fmi.fmi.BuildConfig;
@@ -41,6 +50,7 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     private static final int SYNC_INTERVAL = 60 * 60 * 3;
     private static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
+    static final String NOTIFICATION_POST_ID = "notification_post_id";
 
     public FmiSyncAdapter(Context context, boolean autoInitialize) {
         super(context, autoInitialize);
@@ -48,16 +58,17 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     @Override
     public void onPerformSync(Account account, Bundle extras, String authority, ContentProviderClient provider, SyncResult syncResult) {
-        Log.d(this.getClass().getSimpleName(), "Start syncing");
+        Log.d(getClass().getSimpleName(), "Start syncing");
         try {
             parseCategories(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/categories")));
             parsePosts(performHttpRequest(new URL("http://" + BuildConfig.FMI_SERVER_ADDR + "/api/posts")));
-            Log.d(this.getClass().getSimpleName(), "Sync successful");
+            Log.d(getClass().getSimpleName(), "Sync successful");
         } catch (MalformedURLException e) {
             e.printStackTrace();
-            Log.e(this.getClass().getSimpleName(), "Sync error");
+            Log.e(getClass().getSimpleName(), "Sync error");
         } catch (Exception e) {
-            Log.e(this.getClass().getSimpleName(), "An error occurred");
+            e.printStackTrace();
+            Log.e(getClass().getSimpleName(), "An error occurred");
         }
     }
 
@@ -134,6 +145,9 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     // TODO: write test for post parse method
     private void parsePosts(String postsJsonString) {
+        List<Post> newPosts = new ArrayList<>();
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(getContext());
+
         try {
             JSONArray baseArray = new JSONArray(postsJsonString);
             Vector<ContentValues> translationContentValuesVector = new Vector<>();
@@ -146,65 +160,76 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
                 String category = categories.getString(0);
                 String _id = baseElement.getString("_id");
                 int titleStringKey, contentStringKey;
+                boolean notifyPost = false;
 
                 Cursor postCursor = getContext().getContentResolver().query(
                         FmiContract.PostEntry.CONTENT_URI,
                         new String[]{
                                 FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY,
-                                FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY
+                                FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY,
+                                FmiContract.PostEntry.COLUMN_CATEGORY_KEY
                         },
                         FmiContract.PostEntry._ID + " = ?",
                         new String[]{_id},
                         null);
 
-                if (postCursor.moveToFirst()) {
-                    titleStringKey = postCursor.getInt(postCursor.getColumnIndex(
-                            FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY));
-                    contentStringKey = postCursor.getInt(postCursor.getColumnIndex(
-                            FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY));
-                } else {
-                    /* A small hack:
-                     * this ContentValues is required to provide a null when inserting into
-                     * strings table as this table has only one auto-incremented column, _id */
-                    ContentValues stringContentValues = new ContentValues();
-                    stringContentValues.put(FmiContract.StringEntry._ID, (Integer)null);
-                    Uri newTitleString = getContext().getContentResolver().insert(
-                            FmiContract.StringEntry.CONTENT_URI, stringContentValues);
-                    Uri newContentString = getContext().getContentResolver().insert(
-                            FmiContract.StringEntry.CONTENT_URI, stringContentValues);
+                if (postCursor != null) {
+                    if (postCursor.moveToFirst()) {
+                        titleStringKey = postCursor.getInt(postCursor.getColumnIndex(
+                                FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY));
+                        contentStringKey = postCursor.getInt(postCursor.getColumnIndex(
+                                FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY));
+                    } else {
+                        if (sharedPref.getBoolean("notify_" + category, false))
+                            notifyPost = true;
 
-                    titleStringKey = Integer.parseInt(newTitleString.getPathSegments().get(1));
-                    contentStringKey = Integer.parseInt(newContentString.getPathSegments().get(1));
-                    ContentValues newPostValues = new ContentValues();
-                    newPostValues.put(FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY, titleStringKey);
-                    newPostValues.put(FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY, contentStringKey);
-                    newPostValues.put(FmiContract.PostEntry.COLUMN_CATEGORY_KEY, category);
-                    newPostValues.put(FmiContract.PostEntry._ID, _id);
-                    postContentValuesVector.add(newPostValues);
-                }
+                        /* A small hack:
+                         * this ContentValues is required to provide a null when inserting into
+                         * strings table as this table has only one auto-incremented column, _id */
+                        ContentValues stringContentValues = new ContentValues();
+                        stringContentValues.put(FmiContract.StringEntry._ID, (Integer)null);
+                        Uri newTitleString = getContext().getContentResolver().insert(
+                                FmiContract.StringEntry.CONTENT_URI, stringContentValues);
+                        Uri newContentString = getContext().getContentResolver().insert(
+                                FmiContract.StringEntry.CONTENT_URI, stringContentValues);
 
-                postCursor.close();
+                        titleStringKey = Integer.parseInt(newTitleString.getPathSegments().get(1));
+                        contentStringKey = Integer.parseInt(newContentString.getPathSegments().get(1));
+                        ContentValues newPostValues = new ContentValues();
+                        newPostValues.put(FmiContract.PostEntry.COLUMN_TITLE_STRING_KEY, titleStringKey);
+                        newPostValues.put(FmiContract.PostEntry.COLUMN_CONTENT_STRING_KEY, contentStringKey);
+                        newPostValues.put(FmiContract.PostEntry.COLUMN_CATEGORY_KEY, category);
+                        newPostValues.put(FmiContract.PostEntry._ID, _id);
+                        postContentValuesVector.add(newPostValues);
+                    }
+                    postCursor.close();
 
-                Iterator<String> keys = content.keys();
+                    Iterator<String> keys = content.keys();
 
-                while (keys.hasNext()) {
-                    String key = keys.next();
-                    Log.d(this.getClass().toString(), "adding locale " + key);
-                    ContentValues titleContentValues = new ContentValues();
-                    titleContentValues.put(FmiContract.TranslationEntry.COLUMN_STRING_KEY, titleStringKey);
-                    titleContentValues.put(FmiContract.TranslationEntry.COLUMN_LOCALE,
-                            key);
-                    titleContentValues.put(FmiContract.TranslationEntry.COLUMN_VALUE,
-                            content.getString(key));
-                    translationContentValuesVector.add(titleContentValues);
+                    while (keys.hasNext()) {
+                        String key = keys.next();
+                        Log.d(getClass().getSimpleName(), "adding locale " + key);
 
-                    ContentValues contentContentValues = new ContentValues();
-                    contentContentValues.put(FmiContract.TranslationEntry.COLUMN_STRING_KEY, contentStringKey);
-                    contentContentValues.put(FmiContract.TranslationEntry.COLUMN_LOCALE,
-                            key);
-                    contentContentValues.put(FmiContract.TranslationEntry.COLUMN_VALUE,
-                            content.getString(key));
-                    translationContentValuesVector.add(contentContentValues);
+                        if (notifyPost && key.equals(sharedPref.getString(getContext().getString(
+                                R.string.pref_language_key), "ro")))
+                            newPosts.add(new Post(_id, Html.fromHtml(content.getString(key)).toString()));
+
+                        ContentValues titleContentValues = new ContentValues();
+                        titleContentValues.put(FmiContract.TranslationEntry.COLUMN_STRING_KEY, titleStringKey);
+                        titleContentValues.put(FmiContract.TranslationEntry.COLUMN_LOCALE,
+                                key);
+                        titleContentValues.put(FmiContract.TranslationEntry.COLUMN_VALUE,
+                                Html.fromHtml(content.getString(key)).toString());      // TODO: 19.05.2016 add proper title in DB
+                        translationContentValuesVector.add(titleContentValues);
+
+                        ContentValues contentContentValues = new ContentValues();
+                        contentContentValues.put(FmiContract.TranslationEntry.COLUMN_STRING_KEY, contentStringKey);
+                        contentContentValues.put(FmiContract.TranslationEntry.COLUMN_LOCALE,
+                                key);
+                        contentContentValues.put(FmiContract.TranslationEntry.COLUMN_VALUE,
+                                content.getString(key));
+                        translationContentValuesVector.add(contentContentValues);
+                    }
                 }
             }
 
@@ -220,6 +245,27 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
         } catch (JSONException e) {
             e.printStackTrace();
+        }
+
+        Post[] newPostsArray = new Post[newPosts.size()];
+        newPosts.toArray(newPostsArray);
+        notifyNewPosts(newPostsArray);
+    }
+
+    private void notifyNewPosts(Post[] newPosts) {
+        Log.d(getClass().getSimpleName(), "New posts: " + newPosts.length + " post(s)");
+        NotificationManagerCompat notificationManager = NotificationManagerCompat.from(getContext());
+        for (int i = 0; i < newPosts.length; i++) {
+            Bundle notificationBundle = new Bundle();
+            notificationBundle.putString(NOTIFICATION_POST_ID, newPosts[i].id);
+            NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(getContext())
+                    .setAutoCancel(true)
+                    .setPriority(Notification.PRIORITY_LOW)
+                    .setContentTitle("New post")
+                    .setContentText(newPosts[i].title)
+                    .setSmallIcon(R.mipmap.fmi_small)
+                    .setExtras(notificationBundle);
+            notificationManager.notify(i, notificationBuilder.build());
         }
     }
 
@@ -324,5 +370,15 @@ public class FmiSyncAdapter extends AbstractThreadedSyncAdapter {
 
     public static void initializeSyncAdapter(Context context) {
         getSyncAccount(context);
+    }
+
+    private class Post {
+        public String id;
+        public String title;
+
+        public Post(String id, String title) {
+            this.id = id;
+            this.title = title;
+        }
     }
 }

@@ -161,14 +161,16 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         @Override
         protected CharSequence getPageTitle(Context mContext, Cursor mCursor) {
-            String categoryTitle = mCursor.getString(mCursor.getColumnIndex(FmiContract.TranslationEntry.COLUMN_VALUE));
+            String categoryTitle = mCursor.getString(mCursor.getColumnIndex(
+                    FmiContract.TranslationEntry.COLUMN_VALUE));
             Log.d(this.getClass().getSimpleName(), "Returning title for category " + categoryTitle);
             return categoryTitle;
         }
 
         @Override
         public Fragment getItem(Context context, Cursor cursor) {
-            String categoryId = cursor.getString(cursor.getColumnIndex(FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID));
+            String categoryId = cursor.getString(cursor.getColumnIndex(
+                    FmiContract.CategoryEntry.TABLE_NAME + "." + FmiContract.CategoryEntry._ID));
             Log.d(this.getClass().getSimpleName(), "Returning fragment for category "+categoryId);
             return PlaceholderFragment.newInstance(categoryId);
         }

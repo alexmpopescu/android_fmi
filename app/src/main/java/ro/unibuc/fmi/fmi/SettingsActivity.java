@@ -43,7 +43,6 @@ public class SettingsActivity extends PreferenceActivity implements LoaderManage
             do {
                 CheckBoxPreference checkBoxPreference = new CheckBoxPreference(this);
 
-                checkBoxPreference.setChecked(true);
                 checkBoxPreference.setTitle(data.getString(data.getColumnIndex(
                         FmiContract.TranslationEntry.COLUMN_VALUE)));
                 checkBoxPreference.setKey("notify_" + data.getString(data.getColumnIndex(
